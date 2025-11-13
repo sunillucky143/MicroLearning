@@ -1,0 +1,115 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courses         Course[]
+  notes           Note[]
+  learningSessions LearningSession[]
+
+  @@map("users")
+}
+
+model Course {
+  id           String   @id @default(cuid())
+  userId       String
+  courseName   String
+  focusArea    String   @db.Text
+  topicsPerDay Int      @default(3)
+  startDate    DateTime @default(now())
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topics Topic[]
+
+  @@index([userId, isActive])
+  @@map("courses")
+}
+
+model Topic {
+  id          String   @id @default(cuid())
+  courseId    String
+  title       String
+  description String   @db.Text
+  content     String   @db.Text
+  sources     String[] @default([])
+  assignedDate DateTime
+  completed   Boolean  @default(false)
+  completedAt DateTime?
+  order       Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  course          Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  notes           Note[]
+  learningSessions LearningSession[]
+  mediaConversions MediaConversion[]
+
+  @@index([courseId, assignedDate])
+  @@index([assignedDate])
+  @@map("topics")
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  topicId   String   @unique
+  userId    String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  topic Topic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notes")
+}
+
+model LearningSession {
+  id          String    @id @default(cuid())
+  topicId     String
+  userId      String
+  mode        String    // chat, game, audio, podcast, video, comic, custom
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  duration    Int?      // in seconds
+  data        Json?     // store mode-specific data (chat messages, game stats, etc.)
+
+  topic Topic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, topicId])
+  @@map("learning_sessions")
+}
+
+model MediaConversion {
+  id        String   @id @default(cuid())
+  topicId   String
+  mode      String   // audio, podcast, video, comic, game
+  url       String?
+  content   String?  @db.Text
+  status    String   @default("pending") // pending, processing, completed, failed
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  topic Topic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@index([topicId, mode])
+  @@map("media_conversions")
+}
